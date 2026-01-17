@@ -1,224 +1,38 @@
----
-# Namespace
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: alpaca-trader
-
----
-# PostgreSQL for Temporal persistence
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-  namespace: alpaca-trader
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 20Gi
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
+  name: alpaca-schedule-trader
   namespace: alpaca-trader
+  labels:
+    app: alpaca-schedule-trader
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: postgres
+      app: alpaca-schedule-trader
   template:
     metadata:
       labels:
-        app: postgres
+        app: alpaca-schedule-trader
+        version: IMAGE_LABEL
     spec:
       containers:
-      - name: postgres
-        image: postgres:15-alpine
-        env:
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: temporal-secrets
-              key: postgres-user
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: temporal-secrets
-              key: postgres-password
-        - name: POSTGRES_DB
-          value: temporal
+      - name: alpaca-schedule-trader
+        image: DOCKER_URL/alpaca-schedule-trader:IMAGE_LABEL
         ports:
-        - containerPort: 5432
-          name: postgres
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-pvc
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: alpaca-trader
-spec:
-  selector:
-    app: postgres
-  ports:
-  - port: 5432
-    targetPort: 5432
-    name: postgres
-
----
-# Temporal Server
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: temporal-server
-  namespace: alpaca-trader
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: temporal-server
-  template:
-    metadata:
-      labels:
-        app: temporal-server
-    spec:
-      containers:
-      - name: temporal-server
-        image: temporalio/auto-setup:1.24.0
-        env:
-        - name: DB
-          value: postgresql
-        - name: DB_PORT
-          value: "5432"
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: temporal-secrets
-              key: postgres-user
-        - name: POSTGRES_PWD
-          valueFrom:
-            secretKeyRef:
-              name: temporal-secrets
-              key: postgres-password
-        - name: POSTGRES_SEEDS
-          value: postgres
-        - name: SKIP_DB_CREATE
-          value: "true"
-        - name: SKIP_DB_SETUP
-          value: "true"
-        - name: SKIP_DEFAULT_NAMESPACE_CREATION
-          value: "false"
-        ports:
-        - containerPort: 7233
-          name: frontend
-        - containerPort: 7234
-          name: internode
-        - containerPort: 7235
-          name: membership
-        - containerPort: 7236
-          name: history
-        - containerPort: 7237
-          name: matching
-        - containerPort: 7238
-          name: worker
-        - containerPort: 7239
-          name: frontend-grpc
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "2000m"
-        readinessProbe:
-          tcpSocket:
-            port: 7233
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        livenessProbe:
-          tcpSocket:
-            port: 7233
-          initialDelaySeconds: 30
-          periodSeconds: 30
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: temporal-server
-  namespace: alpaca-trader
-spec:
-  selector:
-    app: temporal-server
-  ports:
-  - port: 7233
-    targetPort: 7233
-    name: frontend
-  - port: 7234
-    targetPort: 7234
-    name: internode
-  - port: 7235
-    targetPort: 7235
-    name: membership
-  - port: 7236
-    targetPort: 7236
-    name: history
-  - port: 7237
-    targetPort: 7237
-    name: matching
-  - port: 7238
-    targetPort: 7238
-    name: worker
-  - port: 7239
-    targetPort: 7239
-    name: frontend-grpc
-
----
-# Temporal UI
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: temporal-ui
-  namespace: alpaca-trader
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: temporal-ui
-  template:
-    metadata:
-      labels:
-        app: temporal-ui
-    spec:
-      containers:
-      - name: temporal-ui
-        image: temporalio/ui:2.24.0
-        env:
-        - name: TEMPORAL_ADDRESS
-          value: temporal-server:7233
-        - name: TEMPORAL_CORS_ORIGINS
-          value: "*"
-        ports:
-        - containerPort: 8080
+        - containerPort: 5000
           name: http
+        env:
+        - name: ALPACA_API_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-credentials
+              key: api-key-id
+        - name: ALPACA_API_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-credentials
+              key: api-secret-key
         resources:
           requests:
             memory: "128Mi"
@@ -226,147 +40,20 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "500m"
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: temporal-ui
-  namespace: alpaca-trader
-spec:
-  type: ClusterIP
-  selector:
-    app: temporal-ui
-  ports:
-  - port: 80
-    targetPort: 8080
-    name: http
-
----
-# Ngrok Ingress for Temporal UI with OAuth
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: temporal-ui-ngrok
-  namespace: alpaca-trader
-  annotations:
-    kubernetes.io/ingress.class: ngrok
-    ngrok.com/oauth: "google"  # Options: "google", "microsoft", "github", "facebook", "linkedin", "apple", "azure", "okta", "onelogin", "generic"
-    # Uncomment and configure to restrict access:
-    # ngrok.com/oauth-options: '{"allow_emails": ["user@example.com"], "allow_domains": ["example.com"]}'
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: temporal-ui
-            port:
-              number: 80
-
----
-# Secrets (CREATE THIS MANUALLY - see instructions below)
-# This is a template. You need to create the secret manually using:
-# kubectl create secret generic temporal-secrets \
-#   --from-literal=postgres-user=temporal \
-#   --from-literal=postgres-password=YOUR_SECURE_PASSWORD \
-#   --namespace=alpaca-trader
-#
-# kubectl create secret generic alpaca-secrets \
-#   --from-literal=api-key-id=YOUR_ALPACA_API_KEY_ID \
-#   --from-literal=api-secret-key=YOUR_ALPACA_API_SECRET_KEY \
-#   --from-literal=paper=true \
-#   --namespace=alpaca-trader
-
----
-# Schedule Deployment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: schedule
-  namespace: alpaca-trader
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: schedule
-  template:
-    metadata:
-      labels:
-        app: schedule
-    spec:
-      containers:
-      - name: schedule
-        image: DOCKER_URL/alpaca-trader-schedule:IMAGE_LABEL
-        imagePullPolicy: Always
-        command: ["python", "start_schedule.py"]
-        env:
-        - name: TEMPORAL_HOST
-          value: temporal-server
-        - name: TEMPORAL_PORT
-          value: "7233"
-        - name: TEMPORAL_NAMESPACE
-          value: "default"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        # Note: trade_schedule.yaml is included in the Docker image via COPY . .
-
----
-# Worker Deployment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: worker
-  namespace: alpaca-trader
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: worker
-  template:
-    metadata:
-      labels:
-        app: worker
-    spec:
-      containers:
-      - name: worker
-        image: DOCKER_URL/alpaca-trader-worker:IMAGE_LABEL
-        imagePullPolicy: Always
-        command: ["python", "run_worker.py"]
-        env:
-        - name: TEMPORAL_HOST
-          value: temporal-server
-        - name: TEMPORAL_PORT
-          value: "7233"
-        - name: TEMPORAL_NAMESPACE
-          value: "default"
-        - name: ALPACA_API_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: alpaca-secrets
-              key: api-key-id
-        - name: ALPACA_API_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: alpaca-secrets
-              key: api-secret-key
-        - name: ALPACA_PAPER
-          valueFrom:
-            secretKeyRef:
-              name: alpaca-secrets
-              key: paper
-              optional: true
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      restartPolicy: Always
