@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alpaca-config
+data:
+  config.yaml: |
+    timezone: "America/Los_Angeles"
+
+    jobs:
+      # - name: tester_mctest_buy
+      #   action: buy
+      #   ticker: SPY
+      #   quantity: 1
+      #   schedule:
+      #     day_of_week: "fri"
+      #     hour: 10
+      #     minute: 05
+
+      - name: tester_mctest_sell
+        action: sell
+        ticker: SPY
+        quantity: 1
+        schedule:
+          day_of_week: "fri"
+          hour: 10
+          minute: 08
+
+
+      - name: buy_tsla_942
+        action: buy
+        ticker: TSLA
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 9
+          minute: 42
+
+      - name: sell_tsla_1034
+        action: sell
+        ticker: TSLA
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 10
+          minute: 34
+
+      - name: buy_tsla_1142
+        action: buy
+        ticker: TSLA
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 11
+          minute: 42
+
+      - name: sell_tsla_1236
+        action: sell
+        ticker: TSLA
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 12
+          minute: 36
+
+      - name: buy_spy_942
+        action: sell
+        ticker: SPY
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 9
+          minute: 42
+
+      - name: sell_spy_1032
+        action: sell
+        ticker: SPY
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 10
+          minute: 32
+
+      - name: buy_spy_935
+        action: sell
+        ticker: SPY
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 9
+          minute: 35
+
+      - name: sell_spy_1041
+        action: sell
+        ticker: SPY
+        quantity: 100
+        schedule:
+          day_of_week: "mon-fri"
+          hour: 10
+          minute: 41

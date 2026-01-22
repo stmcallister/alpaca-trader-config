@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alpaca-schedule-trader
+  namespace: alpaca-schedule-trader
+spec:
+  ingressClassName: ngrok
+  rules:
+  - host: alpaca-trader.ngrok.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alpaca-schedule-trader
+            port:
+              number: 3000 

@@ -1,0 +1,17 @@
+# Alternative Service configuration using ClusterIP
+# Use this if you prefer to use Ingress or Port Forwarding instead of LoadBalancer
+apiVersion: v1
+kind: Service
+metadata:
+  name: alpaca-schedule-trader
+  labels:
+    app: alpaca-schedule-trader
+spec:
+  type: ClusterIP  # Internal only - use with Ingress or port-forward
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: alpaca-schedule-trader
