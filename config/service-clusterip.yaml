@@ -4,6 +4,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: alpaca-schedule-trader
+  namespace: alpaca-trader
   labels:
     app: alpaca-schedule-trader
 spec:
