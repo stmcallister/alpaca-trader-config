@@ -13,11 +13,11 @@ spec:
     metadata:
       labels:
         app: alpaca-schedule-trader
-        version: IMAGE_LABEL
+        version: 7368628831df94ba53fbed40cbaea56ea0ede2f9
     spec:
       containers:
       - name: alpaca-schedule-trader
-        image: DOCKER_URL/alpaca-schedule-trader:IMAGE_LABEL
+        image: stmcallisterbridge4/alpaca-schedule-trader:7368628831df94ba53fbed40cbaea56ea0ede2f9
         ports:
         - containerPort: 5000
           name: http
